@@ -24,9 +24,13 @@ Beans leben in dem Container. Jede Bean hat Metadaten, die aus der Konfiguration
 * Alles Andere. Das kann z. B. die maximale Nummer von Verbindungen sein, die von einer entsprechenden Bean gemanagt werden.
 
 # Das Erzeugen und Finden der Beans
-Um Beans zu erzeugen, gibt es zwei Möglichkeiten. Entweder werden sie in einer XML-Datei definiert, oder es werden Annotationen verwendet. Die XML-Dateien werden hier wieder ignoriert. Bei der Verwendung von Annotationen werden die Kandidaten für die Beans gefunden, indem der `classpath` gescannt wird. Wenn eine class bestimmte Filterkriterien erfüllt, und mit der passenden Annotation ausgezeichnet ist, wird sie ein Kandidat für eine Bean.
+Um Beans zu definieren, gibt es zwei Möglichkeiten. Entweder werden sie in einer XML-Datei definiert, oder es werden Annotationen verwendet. Die Variante mit den XML-Dateien wird hier wieder ignoriert. Bei der Verwendung von Annotationen werden die Kandidaten für die Beans gefunden, indem der `classpath` gescannt wird. Wenn eine class bestimmte Filterkriterien erfüllt, und mit der passenden Annotation ausgezeichnet ist, wird sie ein Kandidat für eine Bean.
 
-Die generische Auszeichnung für eine von Spring gemanagte Komponente ist `@Component`. Die damit markierte Klasse Wird auch als "Stereotyp" bezeichnet. Es gibt drei spezialisierte Auszeichnungen, die `@Component` verfeinern.
+## Beans als @Component
+Eine Möglichkeitm eine Bean zu erzeugen, ist die Auszeichnung als `@Component`.
+Die generische Auszeichnung für eine von Spring gemanagte Komponente ist `@Component`. Die damit markierte Klasse Wird auch als "Stereotyp" bezeichnet. Die erzeugte Bean 
+
+Es gibt drei spezialisierte Auszeichnungen, die `@Component` verfeinern.
 * `@Controller`
 * `@Repository`
 * `@Service`
@@ -44,6 +48,40 @@ Die Spezialisierung geschieht nicht über Ableitung oder Vererbung. Stattdessen 
     }
 
 Eine Annotation kann mehrere Meta-Annotationen beinhalten, Attribute einer Meta-Annotation können überschrieben werden.Genaueres dazu findet sich in der Spring-Dokumentation.
+
+## Beans als @Bean
+Eine andere Möglichkeit ist es, bestimmte Funktionen als `@Bean` zu annotieren.
+
+    @Configuration
+    public class TextMagic {
+    
+        @Bean
+        @Primary
+        public String randomText() {
+            return "some random text";
+       }
+    
+        @Bean
+        public String anotherText() {
+            return "another random text";
+    }
+
+Diese Beans sind jetzt keine Klasse, sondern einfache Strings. Es gibt in diesem Beispiel zwei Beans mit dem selben Rückgabetyp, Spring kann die gewünschte Bean nicht immer ermitteln.
+
+Eine Möglichkeit, um diese Mehrdeutigkeit aufzulösen, ist die Verwendung von `@Primary`. Diese Annotation wird an eine der Beans geschrieben, die dann der Default ist. Um diesen Wert zu überschreiben, kann `@Qualifier` verwendet werden. 
+
+    public class FooService() {
+
+        @Autowired
+        @Qualifier("anotherText")
+        private String text;
+
+        ...
+    }
+
+Hier wird ausdrücklich `anotherText` gewünscht, der `@Qualifier` hat eine höhere Priorität als `@Primary`. 
+
+Wenn keine der beiden Möglichkeiten gesetzt ist, wird Spring ein Namematching probieren. Wenn an der Verwendungsstelle der Variablenname dem Bean-Namen entspricht, wird die Bean gefunden. 
 
 ## Wer suchet ...
 Die Bean-Kandidaten werden standardmäßig entlang des `classpath` des Projektes gesucht. Die Suche beginnt mit dem Aufuf der Methode `run(...)` der SpringApplication. Der SpringApplication wird eine Konfiguration übergeben, diese ist entweder eine `@Component` oder eine `@Configuration`. Diese Übergabe kann entweder bei der Konstruktion der SpringApplication oder bei dem Aufruf von `run()` erfolgen.
@@ -125,22 +163,32 @@ Durch das Setzen von `useDefaultFilters` auf `false` wird das automatische Scann
 
 # Nutze die Beans
 
-Beans können nur in Komponenten injiziert werden, die ebenfalls von Spring gemanagt werden.
-Um die Beans nutzbar zu machen, wird der Container beim Start das _Wiring_ durchführen. Die Beans werden initalisiert, die Abhängigkeiten aufgelöst, und an den entsprechenden Verwendungsstellen injiziert.  Um diese Stellen zu kennzeichnen, gibt es drei Möglichkeiten.
+Beans können nur in Komponenten injiziert werden, die ebenfalls von Spring gemanagt werden. Um die Beans nutzbar zu machen, wird der Container beim Start das _Wiring_ durchführen. Die Beans werden initalisiert, die Abhängigkeiten aufgelöst, und an den entsprechenden Verwendungsstellen injiziert.  Um diese Stellen zu kennzeichnen, gibt es drei Möglichkeiten. Von diesen Möglichkeiten ist die `Constructor Injection` die Verbreiteste. 
 
-## Constructor Injection
-Die gewünschte Bean wird als Argument in den Constructor geschrieben. Dabei kann die Constructor Injection eine finale Variable füllen, was mit den beiden anderen Methoden nicht möglich ist.
+* Constructor Injection
+* Setter Injection
+* Field Injection
 
-## Setter Injection
-Die Bean wird über einen Setter injiziert. Dabei ist der Methodenname frei wählbar. Spring Boot kann nicht jeden Setter prüfen, deshalb wird er mit `@Autowired` annotiert.
+Bei der `Constructor Injection` wird die gewünschte Bean als Argument in den KonstruKtor geschrieben. Dabei können wr eine finale Variable füllen, was mit den beiden anderen Methoden nicht möglich ist.
+
+    private final Bar bar;
+    
+    @Autowired
+    public Foo(Bar bar) {
+        this.bar = bar;
+    )
+
+Die Annotation `@Autowired` kann entfallen, wenn es nur einen parametriesierten Konstruktor gibt.
+
+
+Die Bean kann auch mit der `Setter Injection` injiziert werden. Dabei ist der Methodenname des Setters frei wählbar. Spring Boot wird nicht jeden Setter prüfen, deshalb wird er mit `@Autowired` annotiert.
 
     @Autowired
 	public void setFooComp(FooComp foo) {
 		this.foo = foo;
 	}
 
-## Field Injection
-Bei der Field injection wird eine Objektvariable mit `@Autowired` annotiert, dies führt dazu, daß die Variable beim Wiring automatisch gesetzt wird.
+Die dritte Möglichkeit ist die `Field Injection`. Hier wird eine Objektvariable mit `@Autowired` annotiert, dies führt dazu, daß die Variable beim Wiring gefüllt wird.
 
     @Autowired private BarComp bar;
 
